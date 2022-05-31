@@ -32,28 +32,15 @@ else
 input_magick_src=
 endif
 
-if HAVE_LIBPNG
-input_png_src=src/input-png.c src/input-png.h
-else
-input_png_src=
-endif
-
-if HAVE_MAGICK_READERS
 if HAVE_GRAPHICSMAGICK
 input_native_src=src/input-tga.c src/input-tga.h
 else
 input_native_src=
 endif
-else
-input_native_src=src/input-bmp.c src/input-bmp.h \
-		   src/input-pnm.c src/input-pnm.h \
-		   src/input-tga.c src/input-tga.h
-endif
 
 input_src=src/input-gf.c src/input-gf.h \
 	  $(input_magick_src) \
-	  $(input_native_src) \
-	  $(input_png_src)
+	  $(input_native_src)
 
 if HAVE_LIBSWF
 output_swf_src=src/output-swf.c src/output-swf.h
@@ -153,7 +140,6 @@ autotrace_LDADD =				\
 		libautotrace.la			\
 		$(GRAPHICSMAGICK_LIBS)		\
 		$(IMAGEMAGICK_LIBS)		\
-		$(LIBPNG_LIBS)		\
 		$(LIBSWF_LIBS)		\
 		$(LIBPSTOEDIT_LIBS)		\
 		$(GLIB2_LIBS)			\

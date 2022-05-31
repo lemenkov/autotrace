@@ -122,31 +122,6 @@ AM_CONDITIONAL(HAVE_GRAPHICSMAGICK, test "x$HAVE_GRAPHICSMAGICK" = xyes)
 AM_CONDITIONAL(HAVE_MAGICK_READERS, test "x$HAVE_MAGICK_READERS" = xyes)
 
 dnl
-dnl LIBPNG
-dnl
-
-AC_ARG_WITH(png,
-[  --with-png  compile with png(default)
-  --without-png  compile without png],,with_png=yes)
-
-HAVE_LIBPNG=no
-if test "x${with_png}" = xyes; then
-	PKG_CHECK_MODULES([LIBPNG],[libpng],
-		  [
-		   HAVE_LIBPNG=yes
-		   AC_DEFINE(HAVE_LIBPNG,1,[PNG library is available or not])
-		   ],
-		   [
-		    AC_MSG_WARN([*** Cannot find libpng.            ***])
-		    AC_MSG_WARN([*** Png input handler is disabled. ***])
-		    ]
-		  )
-else
-		AC_MSG_WARN([*** libpng input handler is disabled.           ***])
-fi
-AM_CONDITIONAL(HAVE_LIBPNG, test $HAVE_LIBPNG = yes)
-
-dnl
 dnl LIBMING(LIBSWF)
 dnl
 
@@ -208,7 +183,6 @@ echo "
 
 Configuration:
 	graphics/imagemagick output support:	$HAVE_MAGICK ($MAGICK_LIBRARY)
-	libpng output support:			$HAVE_LIBPNG
 	swf output support by ming:		$HAVE_LIBSWF
 	pstoedit output support:		$HAVE_LIBPSTOEDIT
 
