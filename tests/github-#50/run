@@ -1,0 +1,16 @@
+#!/bin/sh
+
+. "`dirname "$0"`/../functions"
+
+DIR=$1
+
+autotrace -report-progress  -centerline -remove-adjacent-corners --line-threshold 10 -line-reversion-threshold 0.01 -corner-surround 12 -corner-always-threshol 60 -corner-threshold 120 -error-threshold 3 -filter-iterations 0 -despeckle-level 20 -despeckle-tightness 2.0 -noise-removal 0.99 $DIR/perfect_square.jpg -output-format svg -output-file $DIR/perfect_square.output.svg
+cmp --silent $DIR/perfect_square.svg $DIR/perfect_square.output.svg
+RESULT=$?
+
+if [ $RESULT -eq 0 ] && [ -s $DIR/perfect_square.output.svg ] ; then
+    rm -f $DIR/perfect_square.output.svg
+    ok
+else
+    fail "$DIR/perfect_square.output.svg not equal to $DIR/perfect_square.svg"
+fi
