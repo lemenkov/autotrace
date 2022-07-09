@@ -1,6 +1,7 @@
-# GitHub Action to automate the identification of common misspellings in text files.
-# https://github.com/codespell-project/actions-codespell
-# https://github.com/codespell-project/codespell
+# SPDX-FileCopyrightText: 2023 Peter Lemenkov <lemenkov@gmail.com>
+#
+# SPDX-License-Identifier: CC0-1.0
+
 name: codespell
 on: [push, pull_request]
 permissions: {}
@@ -15,5 +16,4 @@ jobs:
       - uses: codespell-project/actions-codespell@master
         with:
           check_filenames: true
-          # When using this Action in other repos, the --skip option below can be removed
-          skip: "./.git, ./COPYING, ./COPYING.LIB"
+          skip: ./.git, ./COPYING, ./COPYING.LIB, ./LICENSES

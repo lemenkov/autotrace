@@ -1,4 +1,7 @@
-# Your .github/workflows/coverity.yml file.
+# SPDX-FileCopyrightText: 2022 Peter Lemenkov <lemenkov@gmail.com>
+#
+# SPDX-License-Identifier: CC0-1.0
+
 name: Coverity scan
 
 # We only want to test official release code, not every pull request.
