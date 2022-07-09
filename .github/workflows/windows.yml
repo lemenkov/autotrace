@@ -1,10 +1,10 @@
-# This is a basic workflow to help you get started with Actions
+# SPDX-FileCopyrightText: 2024 Peter Lemenkov <lemenkov@gmail.com>
+#
+# SPDX-License-Identifier: CC0-1.0
 
 name: Building for Windows
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
     tags:
       - '*'           # Push events to every tag not containing /
@@ -12,15 +12,12 @@ on:
 env:
   DEB_DH_SHLIBDEPS_ARGS_ALL: "--dpkg-shlibdeps-params=--ignore-missing-info"
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build_win32_64_installer:
     runs-on: ubuntu-latest
     container: fedora:38
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      # Runs a single command using the runners shell
       - name: Install all dependencies for Win32 and Win64
         run: |
             sudo dnf update -y
@@ -62,8 +59,3 @@ jobs:
         with:
           file_glob: true
           file: distribute/win/autotrace-*-setup.exe
-
-#      - uses: actions/upload-artifact@v4.3.0
-#        with:
-#          name: windows-installers
-#          path: distribute/win/autotrace-*-setup.exe
