@@ -1,0 +1,26 @@
+name: Testing on Windows
+
+jobs:
+  build:
+    defaults:
+      run:
+        shell: wsl-bash {0}
+    runs-on: windows-latest
+    steps:
+      - uses: Vampire/setup-wsl@v2.0.2
+        with:
+          distribution: Ubuntu-20.04
+
+      - name: Install WSL dependencies
+        run: |
+          apt update
+          apt install -y gcc-mingw-w64 make unzip
+
+      - uses: actions/checkout@v4
+      - name: build and run tests packages with all featured readers
+        run: |
+            apt install -y libgraphicsmagick1-dev libpng-dev libexiv2-dev libtiff-dev libjpeg-dev libxml2-dev libbz2-dev libfreetype6-dev libpstoedit-dev autoconf automake libtool intltool autopoint
+            ./autogen.sh
+            ./configure
+            make
+            make check
