@@ -7,7 +7,9 @@ on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [master]
-
+  pull_request:
+    branches:
+         - '*'
 env:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -23,10 +25,16 @@ jobs:
       - name: build and run tests packages with all featured readers
         run: |
             brew update
-            # Required for intltool and you cannot just brew install perl-xml-parser (formulae broken?)
-            perl -MCPAN -e "install XML::Parser"
-            perl -e "require XML::Parser"
-            brew install graphicsmagick pstoedit libpng gettext intltool glib libtool autoconf automake pkg-config
+            brew install graphicsmagick pstoedit libpng gettext intltool glib libtool autoconf automake pkg-config perl-xml-parser
+            brew link --overwrite --force libtool
+            # quick diagnostics (will fail the job with useful info)
+            echo "brew info libtool:"
+            brew info libtool
+            echo "ls libtool libdir:"
+            ls -la "$HOMEBREW_PREFIX/opt/libtool/lib" || true
+            echo "pkg-config outputs (libltdl/libtool-ltdl):"
+            pkg-config --exists libltdl && pkg-config --modversion libltdl && pkg-config --libs libltdl || echo "libltdl.pc not found"
+            pkg-config --exists libtool-ltdl && pkg-config --modversion libtool-ltdl && pkg-config --libs libtool-ltdl || echo "libtool-ltdl.pc not found"
             ./autogen.sh
             ./configure
             make
