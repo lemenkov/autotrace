@@ -640,6 +640,51 @@ cleanup:
 #define CURVE_BORDER(n) g_array_index(border->curves, curve_border_type, n)
 #define BORROWED(n) (border != NULL && CURVE_BORDER(n).owner >= 0)
 
+/* Whether the line through skeleton point (X, Y) of DIST is an odd (1) or
+   an even (-1) number of pixels wide there, or 0 if that cannot be told.
+   Take the pixel of largest distance around (X, Y), as the width does,
+   and look across the line on each axis: a line of odd width has its
+   middle pixel further from the background than both its neighbours,
+   one of even width has two middle pixels as far from it.  Along the
+   line, both neighbours are as far as the pixel.  Only a line along a
+   pixel row or column tells: one axis must run along it and the other
+   across it, as on a diagonal or at a corner the distances, in steps of
+   1 and the square root of 2, do not tell odd from even.  */
+
+static int line_parity(const at_distance_map *dist, unsigned x, unsigned y)
+{
+  unsigned i, j, mx = x, my = y;
+  int even = 0, along = 0;
+  float m;
+
+  for (j = y ? y - 1 : 0; j <= y + 1 && j < dist->height; j++)
+    for (i = x ? x - 1 : 0; i <= x + 1 && i < dist->width; i++)
+      if (dist->d[j][i] > dist->d[my][mx]) {
+        mx = i;
+        my = j;
+      }
+  m = dist->d[my][mx];
+  if (mx == 0 || my == 0 || mx + 1 >= dist->width || my + 1 >= dist->height)
+    return 0;
+
+  {
+    float pairs[2][2] = {{dist->d[my][mx - 1], dist->d[my][mx + 1]},
+                         {dist->d[my - 1][mx], dist->d[my + 1][mx]}};
+    unsigned a;
+    for (a = 0; a < 2; a++) {
+      gboolean first = fabsf(pairs[a][0] - m) <= 1e-3F;
+      gboolean second = fabsf(pairs[a][1] - m) <= 1e-3F;
+      if (first && second)
+        along++;
+      else if (first || second)
+        even++;
+    }
+  }
+  if (along != 1)
+    return 0;
+  return even ? -1 : 1;
+}
+
 /* Fit the curves of outline THIS_OUTLINE of the job DATA.  Its curve list
    represents a single closed path, e.g., either the inside or outside
    outline of an `o'.  This changes nothing but the curves of that list and
@@ -683,6 +728,36 @@ static void fit_outline(unsigned this_outline, at_exception_type *exception, gpo
   if (dist != NULL) {
     unsigned this_point;
     unsigned height = dist->height;
+    /* The distance is to the centre of the nearest background pixel,
+       half a pixel beyond the line's edge.  Doubled, it is a pixel too
+       wide on a line of odd width, whose middle pixel lies on the
+       centreline, and right on one of even width, whose two middle rows
+       straddle it (#453).  Decided pixel by pixel, that made the width
+       jump along a jagged line, so decide it once for the whole stroke,
+       by the points that tell, and take off half a pixel from the
+       distance of an odd one.  When no point tells, or they disagree,
+       take off half that, which is at most half a pixel off either way
+       (#459): a stroke made of lines of odd and even widths gets one
+       width for all of them, and either choice would put one of them a
+       whole pixel off.  */
+    float correction = 0.25F;
+    {
+      int odd = 0, even = 0;
+      for (this_curve = 0; this_curve < curve_list_length; this_curve++) {
+        curve = CURVE_LIST_ELT(curve_list, this_curve);
+        for (this_point = 0; this_point < CURVE_LENGTH(curve); this_point++) {
+          at_real_coord *coord = &CURVE_POINT(curve, this_point);
+          int parity = line_parity(dist, (unsigned)(coord->x), height - (unsigned)(coord->y) - 1);
+          odd += parity > 0;
+          even += parity < 0;
+        }
+      }
+      /* More than three of every four points that tell must agree.  */
+      if (odd > 3 * even)
+        correction = 0.5F;
+      else if (even > 3 * odd)
+        correction = 0.0F;
+    }
     for (this_curve = 0; this_curve < curve_list_length; this_curve++) {
       curve = CURVE_LIST_ELT(curve_list, this_curve);
       for (this_point = 0; this_point < CURVE_LENGTH(curve); this_point++) {
@@ -721,17 +796,10 @@ static void fit_outline(unsigned this_outline, at_exception_type *exception, gpo
           if (x + 1 < dist->width && (w = dist->d[y + 1][x + 1]) > width)
             width = w;
         }
-        /* WIDTH is the distance from (near) the centreline to the centre
-           of the nearest background pixel, half a pixel beyond the edge.
-           Doubled, it is a pixel too wide on a line of odd width, whose
-           middle pixel lies on the centreline, and right on one of even
-           width, whose two middle rows straddle it (#453).  Telling them
-           apart pixel by pixel makes the width jump along a jagged line,
-           so take off half that error everywhere: a black line along a
-           pixel row or column is then at most half a pixel off either
-           way.  A pixel only partly inked counts for only part of a step
-           of the distance, so weigh the correction the same way.  */
-        width -= 0.25F * dist->weight[y][x];
+        /* Take off the stroke's correction, chosen above.  A pixel only
+           partly inked counts for only part of a step of the distance,
+           so weigh the correction the same way.  */
+        width -= correction * dist->weight[y][x];
 
         /* Each step of the distance counts the part of a pixel that is
            ink, so on a line of grey or coloured ink every step counts

@@ -1,0 +1,43 @@
+#!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 AutoTrace contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# -centerline -preserve-width must give a black line along a pixel row or
+# column its own width.  A line of odd width was a pixel too wide, and
+# since #459 every width was half a pixel off: 1.50 for lines of 1 and 2
+# pixels, 3.50 for 3 and 4 (issue #453).
+#
+# bars.png is 60x60, white, with black bars 1, 2, 3 and 4 pixels high and
+# one 3 pixels wide.  Made with
+#   magick -size 60x60 xc:white +antialias -fill black \
+#     -draw "rectangle 10,5 49,5" -draw "rectangle 10,12 49,13" \
+#     -draw "rectangle 10,20 49,22" -draw "rectangle 10,30 49,33" \
+#     -draw "rectangle 54,10 56,49" \
+#     -type grayscale -define png:color-type=0 -strip bars.png
+
+. "`dirname "$0"`/../functions"
+
+DIR=$1
+
+autotrace -centerline -preserve-width -output-format svg -output-file $DIR/bars.svg \
+    $DIR/bars.png || fail "cannot trace bars.png"
+paths=`grep -o 'stroke-width:[0-9.]*;[^"]*" d="M[0-9.]* [0-9.]*' $DIR/bars.svg |
+    sed 's/stroke-width:\([0-9.]*\);[^"]*" d="M/\1 /'`
+rm -f $DIR/bars.svg
+
+# Each bar by the point its stroke starts at, and the width it must have.
+failed=""
+for want in "1.00 10.5 5.5" "2.00 10.5 13.5" "3.00 10.5 21.5" "4.00 11.5 32.5" \
+    "3.00 55.5 11.5"; do
+    case "$paths" in
+    *"$want"*) ;;
+    *) failed="$failed [$want]" ;;
+    esac
+done
+
+if [ -n "$failed" ]; then
+    fail "wrong widths:$failed in: `echo $paths`"
+fi
+ok

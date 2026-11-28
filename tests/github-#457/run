@@ -36,10 +36,10 @@ for g in g128 g180; do
     test "$w" = "$black" || fail "the $g bar is $w wide, the black one $black"
 done
 
-# The orange bar is 3 pixels high; a black one of 3 pixels is 3.50 wide.
+# The orange bar is 3 pixels high, as wide as a black one of 3 pixels.
 w=`width orange`
 case "$w" in
-3.50) ;;
-*) fail "the orange bar is $w wide, not 3.50" ;;
+3.00) ;;
+*) fail "the orange bar is $w wide, not 3.00" ;;
 esac
 ok
