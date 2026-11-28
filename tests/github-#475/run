@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 AutoTrace contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# -centerline -preserve-width must measure a line's width to the background
+# that -background-color names, not to white.  A black bar 5 pixels high on
+# gray(200) was 11.12 wide, as on white it is 5.50 (issue #475).
+#
+# grey.png is 100x40, gray(200), with a black bar from (10,10) to (89,14);
+# pale.png is gray(250) with one from (10,10) to (89,12).  Both are
+# greyscale PNGs.  Made with
+#   magick -size 100x40 xc:"gray(200)" +antialias -fill black \
+#     -draw "rectangle 10,10 89,14" -type truecolor -strip grey.png
+# blue.png is an RGB PNG, #3080C0, with a black bar from (10,10) to
+# (89,14) and a white one from (10,25) to (89,29).  Made with
+#   magick -size 100x40 xc:"#3080C0" +antialias -fill black \
+#     -draw "rectangle 10,10 89,14" -fill white -draw "rectangle 10,25 89,29" \
+#     -type truecolor -define png:color-type=2 -strip blue.png
+
+. "`dirname "$0"`/../functions"
+
+DIR=$1
+
+width() {
+    autotrace -centerline -preserve-width -background-color $2 -output-format svg \
+        -output-file $DIR/out.svg $DIR/$1.png || fail "cannot trace $1.png"
+    w=`grep -o 'stroke-width:[0-9.]*' $DIR/out.svg | sed 's/stroke-width://'`
+    rm -f $DIR/out.svg
+    echo $w
+}
+
+# A black bar along a pixel row is 5.50 and 3.50 wide on white (the half
+# pixel too much is issue #453).
+w=`width grey C8C8C8`
+test "$w" = 5.50 || fail "the bar on gray(200) is $w wide, not 5.50"
+w=`width pale FAFAFA`
+test "$w" = 3.50 || fail "the bar on gray(250) is $w wide, not 3.50"
+w=`width blue 3080C0`
+test "$w" = "5.50 5.50" || fail "the bars on #3080C0 are $w wide, not 5.50 5.50"
+ok
