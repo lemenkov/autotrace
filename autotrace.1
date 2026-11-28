@@ -270,6 +270,15 @@ command can be used to determine which are supported locally).
 .TP
 .B \-preserve-width
 Whether to preserve line width prior to thinning.
+The width is measured to the background, white unless
+.B \-background-color
+names another.
+Without
+.BR \-background-color ,
+it counts how much ink a line holds, so a grey or coloured line comes out
+narrower than a black one of the same size.
+With it, a line with at least a quarter of ink is measured in its own ink,
+so it gets the width of a black line of the same size.
 .TP
 .BI \-preset " name"
 Start from the options of the preset

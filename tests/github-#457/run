@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 AutoTrace contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# -centerline -preserve-width, with the background named by
+# -background-color, must give a grey or coloured line the width of a black
+# line of the same size.  The width used to shrink with how light the line
+# was: 5.50 for a black bar 5 pixels high, 2.74 for a grey one and 1.62 for
+# a pale grey one (issue #457).
+#
+# The images are 100x40, white, with a bar from (10,10) to (89,14) in
+# black, gray(128) and gray(180), and one from (10,10) to (89,12) in orange.
+# Made with
+#   magick -size 100x40 xc:white +antialias -fill "gray(128)" \
+#     -draw "rectangle 10,10 89,14" -type truecolor -strip g128.png
+
+. "`dirname "$0"`/../functions"
+
+DIR=$1
+
+width() {
+    autotrace -centerline -preserve-width -background-color FFFFFF -output-format svg \
+        -output-file $DIR/out.svg \
+        $DIR/$1.png || fail "cannot trace $1.png"
+    w=`grep -o 'stroke-width:[0-9.]*' $DIR/out.svg | sed 's/stroke-width://'`
+    rm -f $DIR/out.svg
+    echo $w
+}
+
+black=`width black`
+test -n "$black" || fail "no stroke width for the black bar"
+for g in g128 g180; do
+    w=`width $g`
+    test "$w" = "$black" || fail "the $g bar is $w wide, the black one $black"
+done
+
+# The orange bar is 3 pixels high; a black one of 3 pixels is 3.50 wide.
+w=`width orange`
+case "$w" in
+3.50) ;;
+*) fail "the orange bar is $w wide, not 3.50" ;;
+esac
+ok
