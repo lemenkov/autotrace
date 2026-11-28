@@ -35,6 +35,11 @@
 #define SQUARE(x) ((x) * (x))
 #define CUBE(x) ((x) * (x) * (x))
 
+/* With -preserve-width and -background-color, the least ink a line must
+   have for its width to be measured in its own ink, a quarter: grey 191
+   or darker on white (#457).  */
+#define MIN_SCALED_INK 0.25F
+
 /* The default of fitting_opts.corner_surround.  */
 #define DEFAULT_CORNER_SURROUND 4
 
@@ -727,6 +732,32 @@ static void fit_outline(unsigned this_outline, at_exception_type *exception, gpo
            way.  A pixel only partly inked counts for only part of a step
            of the distance, so weigh the correction the same way.  */
         width -= 0.25F * dist->weight[y][x];
+
+        /* Each step of the distance counts the part of a pixel that is
+           ink, so on a line of grey or coloured ink every step counts
+           as part of one, and the line came out narrower the lighter it
+           was (#457).  Measure it in the line's own ink instead: as a
+           share of the darkest pixel around the centreline.  For a black
+           line that share is 1, and it is left alone.
+
+           Only with -background-color, though.  Without it, an image
+           whose background is not exactly white, such as one that
+           -color-count turns from white into #FEFEFE, has no pixel at
+           distance 0: every distance runs on across the background to
+           the image's border, and dividing by the line's ink widened
+           that part too, the more the bigger the image.  A region barely
+           apart from the background is left alone as well, as it would
+           grow by as much as its ink is small.  */
+        if (fitting_opts->background_color) {
+          float ink = dist->weight[y][x];
+          unsigned i, j;
+          for (j = y ? y - 1 : 0; j <= y + 1 && j < height; j++)
+            for (i = x ? x - 1 : 0; i <= x + 1 && i < dist->width; i++)
+              if (dist->weight[j][i] > ink)
+                ink = dist->weight[j][i];
+          if (ink >= MIN_SCALED_INK && ink < 1.0F)
+            width /= ink;
+        }
         coord->z = width * (fitting_opts->width_weight_factor);
       }
     }

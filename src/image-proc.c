@@ -21,14 +21,22 @@
 
 /* The part of a pixel that is ink, as far as one of its channels with
    value V tells, on a background whose channel is BG: how far V lies from
-   BG, as a fraction of how far it could lie on that side of it.  */
+   BG, as a fraction of how far it could lie on that side of it, but of no
+   less than a quarter of the range: on a background whose channel is near
+   0 or 255, a step of noise there would otherwise count as much ink, and
+   -preserve-width measured JPEG noise on such a background as wide lines
+   (#457).  A channel at the end of the range, as in a black or white
+   line, is all the ink there can be on that side, so it counts as whole
+   whatever the background.  */
+
+#define MIN_INK_RANGE 64
 
 static float channel_ink(int v, int bg)
 {
   if (v < bg)
-    return (float)(bg - v) / (float)bg;
+    return v == 0 ? 1.0F : (float)(bg - v) / (float)MAX(bg, MIN_INK_RANGE);
   if (v > bg)
-    return (float)(v - bg) / (float)(255 - bg);
+    return v == 255 ? 1.0F : (float)(v - bg) / (float)MAX(255 - bg, MIN_INK_RANGE);
   return 0.0F;
 }
 
