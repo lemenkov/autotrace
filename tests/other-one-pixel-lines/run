@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 AutoTrace contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# A line one pixel wide must be traced as its rectangle, inside the image
+# and along each of its edges.  The outline of such a line on the border
+# bulged into the image or had no area, and one inside lost a corner
+# (issue #458; github-#458 covers its centerlines).
+#
+# lines.png is 40x30, white, with a black line one pixel wide along each
+# edge and one across the middle, none touching another.  Made with
+#   magick -size 40x30 xc:white +antialias -fill black \
+#     -draw "rectangle 8,0 31,0" -draw "rectangle 0,8 0,21" \
+#     -draw "rectangle 8,29 31,29" -draw "rectangle 39,8 39,21" \
+#     -draw "rectangle 8,14 31,14" \
+#     -type grayscale -define png:color-type=0 -strip lines.png
+
+. "`dirname "$0"`/../functions"
+
+DIR=$1
+
+autotrace -output-format svg -output-file $DIR/lines.svg $DIR/lines.png ||
+    fail "cannot trace lines.png"
+d=`grep 'fill:#000000' $DIR/lines.svg | grep -o ' d="[^"]*"'`
+rm -f $DIR/lines.svg
+
+failed=""
+for line in "M8 0L8 1L32 1L32 0L8 0" "M0 8L0 22L1 22L1 8L0 8" "M8 29L8 30L32 30L32 29L8 29" \
+    "M39 8L39 22L40 22L40 8L39 8" "M8 14L8 15L32 15L32 14L8 14"; do
+    case "$d" in
+    *"$line"[Mz]*) ;;
+    *) failed="$failed [$line]" ;;
+    esac
+done
+
+if [ -n "$failed" ]; then
+    fail "lines not traced as rectangles:$failed in$d"
+fi
+ok
