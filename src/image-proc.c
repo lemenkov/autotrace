@@ -19,13 +19,26 @@
 /* RGB to grayscale */
 #define LUMINANCE(r, g, b) ((r) * 0.30 + (g) * 0.59 + (b) * 0.11 + 0.5)
 
-/* Allocate storage for a new distance map with the same dimensions
-   as BITMAP and initialize it so that pixels in BITMAP with value
-   TARGET_VALUE are at distance zero and all other pixels are at
-   distance infinity.  Then compute the gray-weighted distance from
-   every non-target point to the nearest target point. */
+/* The part of a pixel that is ink, as far as one of its channels with
+   value V tells, on a background whose channel is BG: how far V lies from
+   BG, as a fraction of how far it could lie on that side of it.  */
 
-at_distance_map new_distance_map(at_bitmap *bitmap, unsigned char target_value, gboolean padded,
+static float channel_ink(int v, int bg)
+{
+  if (v < bg)
+    return (float)(bg - v) / (float)bg;
+  if (v > bg)
+    return (float)(v - bg) / (float)(255 - bg);
+  return 0.0F;
+}
+
+/* Allocate storage for a new distance map with the same dimensions
+   as BITMAP and initialize it so that pixels in BITMAP of the colour
+   BACKGROUND, or white if it is NULL, are at distance zero and all other
+   pixels are at distance infinity.  Then compute the gray-weighted
+   distance from every non-target point to the nearest target point. */
+
+at_distance_map new_distance_map(at_bitmap *bitmap, const at_color *background, gboolean padded,
                                  cancel_hook *cancel, at_exception_type *exp)
 {
   signed x, y;
@@ -36,6 +49,8 @@ at_distance_map new_distance_map(at_bitmap *bitmap, unsigned char target_value, 
   unsigned h = AT_BITMAP_HEIGHT(bitmap);
   unsigned spp = AT_BITMAP_PLANES(bitmap);
   unsigned check_rows = rows_per_cancel_check(w);
+  gboolean white =
+      !background || (background->r == 255 && background->g == 255 && background->b == 255);
 
   /* Before the two maps, which hold a float per pixel each.  An
      empty map is still safe to free.  */
@@ -51,7 +66,32 @@ at_distance_map new_distance_map(at_bitmap *bitmap, unsigned char target_value, 
     dist.weight[y] = g_new(float, w);
   }
 
-  if (spp == 3) {
+  if (!white) {
+    /* On another background, a pixel is ink as far as its channel that
+       lies furthest from the background's says, so that black and white
+       lines are wholly ink on any background, and a line differing from
+       the background only in hue is ink too.  Weighing every pixel by
+       its distance from white counted a grey background as part ink, and
+       a line on it came out too wide (#475).  */
+    int bg_gray = (int)LUMINANCE(background->r, background->g, background->b);
+    for (y = 0; y < (signed)h; y++) {
+      if (y % check_rows == 0 && cancel_requested(cancel))
+        return dist;
+      for (x = 0; x < (signed)w; x++, b += spp) {
+        if (spp == 3) {
+          float r = channel_ink(b[0], background->r);
+          float g = channel_ink(b[1], background->g);
+          float bl = channel_ink(b[2], background->b);
+          gboolean bg = b[0] == background->r && b[1] == background->g && b[2] == background->b;
+          dist.d[y][x] = bg ? 0.0F : 1.0e10F;
+          dist.weight[y][x] = MAX(r, MAX(g, bl));
+        } else {
+          dist.d[y][x] = b[0] == bg_gray ? 0.0F : 1.0e10F;
+          dist.weight[y][x] = channel_ink(b[0], bg_gray);
+        }
+      }
+    }
+  } else if (spp == 3) {
     for (y = 0; y < (signed)h; y++) {
       if (y % check_rows == 0 && cancel_requested(cancel))
         return dist;
@@ -59,7 +99,7 @@ at_distance_map new_distance_map(at_bitmap *bitmap, unsigned char target_value, 
         int gray;
         float fgray;
         gray = (int)LUMINANCE(b[0], b[1], b[2]);
-        dist.d[y][x] = (gray == target_value ? 0.0F : 1.0e10F);
+        dist.d[y][x] = (gray == 255 ? 0.0F : 1.0e10F);
         fgray = gray * 0.0039215686F; /* = gray / 255.0F */
         dist.weight[y][x] = 1.0F - fgray;
       }
@@ -72,7 +112,7 @@ at_distance_map new_distance_map(at_bitmap *bitmap, unsigned char target_value, 
         int gray;
         float fgray;
         gray = b[0];
-        dist.d[y][x] = (gray == target_value ? 0.0F : 1.0e10F);
+        dist.d[y][x] = (gray == 255 ? 0.0F : 1.0e10F);
         fgray = gray * 0.0039215686F; /* = gray / 255.0F */
         dist.weight[y][x] = 1.0F - fgray;
       }

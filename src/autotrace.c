@@ -449,8 +449,10 @@ static at_splines_type *trace_bitmap(at_bitmap *bitmap, at_fitting_opts_type *op
 
   if (opts->centerline) {
     if (opts->preserve_width) {
-      /* Preserve line width prior to thinning. */
-      dist_map = new_distance_map(bitmap, 255, /*padded= */ TRUE, &cancel, &exp);
+      /* Preserve line width prior to thinning.  The width is measured to
+         the background, which is white unless the options say otherwise,
+         as for the thinning below (#475).  */
+      dist_map = new_distance_map(bitmap, opts->background_color, /*padded= */ TRUE, &cancel, &exp);
       dist = &dist_map;
       FATAL_THEN_CLEANUP_DIST();
     }
